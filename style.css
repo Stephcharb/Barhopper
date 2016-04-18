@@ -1,0 +1,121 @@
+@import url(https://fonts.googleapis.com/css?family=Roboto:400,300,700);
+
+ html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        font-family: 'Roboto', sans-serif;
+
+      }
+      #map {
+        height: 100%;
+        width: 900px;
+        float: right;
+      }
+            
+      #container{
+       z-index: 5;
+      width: 30%;
+      margin: 0px 50px 10px 0px;
+      
+      }	
+        table {
+        font-size: 12px;
+      }
+    
+      #listing {
+        cursor: pointer;
+        overflow-x: hidden;
+        margin: 30px auto;
+        width: 300px;
+      }
+      
+    #findbars {     
+        z-index: 5;
+       /*  margin: 0 auto; */
+        width: 200px;
+        z-index: 5;
+      }
+      
+    #locationField {
+      	margin: 0 auto;
+        width: 90%;
+        z-index: 5;
+      }
+      
+    #controls {
+      	margin-top: -20px;
+      	margin-left: 200px;
+    	margin-bottom: 2px;
+        width: 30%;
+        z-index: 5;
+      }
+      
+      #startTable{
+      width: 300px;
+      
+      }
+	#endTable{
+      width: 300px;
+      
+      }
+      
+      h3{
+      margin-bottom: 0;
+      
+      }
+    
+      #directions {
+        z-index: 5;
+        margin: 0 auto;
+        width: 80%;
+      }
+      
+          
+    #directions-panel {
+        padding: 10px;
+        margin: 0 auto;
+        width: 80%;
+      }
+      
+      
+		#autocomplete {
+    	width: 48%;
+
+      }
+
+      
+      #resultsTable {
+        border-collapse: collapse;
+        width: 100%;
+    
+      }
+      
+      #country {
+        width: 100%;
+      }
+      
+      .placeIcon {
+        width: 20px;
+        height: 34px;
+        margin: 4px;
+      }
+      .hotelIcon {
+        width: 24px;
+        height: 24px;
+      }
+      
+      #rating {
+        font-size: 13px;
+        font-family: Arial Unicode MS;
+      }
+      .iw_table_row {
+        height: 18px;
+      }
+      .iw_attribute_name {
+        font-weight: bold;
+        text-align: right;
+      }
+      .iw_table_icon {
+        text-align: right;
+      }

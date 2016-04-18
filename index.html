@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+  <head>
+
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Waypoints in directions</title>
+    
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.11.0.min.js"></script>
+  </head>
+  <body>
+  
+   <div id="map"></div>
+  
+  <div id="container">
+        <div id="findbars">
+      Search for Bars:
+    </div>
+
+    <div id="locationField">
+      <input id="autocomplete" placeholder="Enter a city" type="text" />
+    </div>
+
+    <div id="controls">
+      <select id="country">
+        <option value="all">All</option>
+        <option value="au">Australia</option>
+        <option value="br">Brazil</option>
+        <option value="ca"  selected>Canada</option>
+        <option value="fr">France</option>
+        <option value="de">Germany</option>
+        <option value="mx">Mexico</option>
+        <option value="nz">New Zealand</option>
+        <option value="it">Italy</option>
+        <option value="za">South Africa</option>
+        <option value="es">Spain</option>
+        <option value="pt">Portugal</option>
+        <option value="us">U.S.A.</option>
+        <option value="uk">United Kingdom</option>
+      </select>
+    </div>
+
+
+
+    <div id="listing">
+    <h3>Pick all the bars you want to go to:</h3>
+      <select  multiple id="resultsTable">
+        <option id="results"></option>
+      </select>
+      <button id="selected">Select These Bars</button>
+      
+	<p>
+    	<h3>Pick which bar you want to start at:</h3>
+   		<select  multiple id="startTable"></select>
+      <button id="startPoint">Select</button>
+      </p>
+      
+      <p>
+    	<h3>Pick which bar you want to end at:</h3>
+    	<select  multiple id="endTable"></select>
+      <input type="submit" id="submit">
+       </p> 
+    </div>
+
+
+    <div style="display: none">
+      <div id="info-content">
+        <table>
+       	 <tr id="iw-url-row" class="iw_table_row">
+           <td id="iw-image"></td>
+          </tr>
+          <tr id="iw-url-row" class="iw_table_row">
+            <td id="iw-icon" class="iw_table_icon"></td>
+            <td id="iw-url"></td>
+          </tr>
+          <tr id="iw-address-row" class="iw_table_row">
+            <td class="iw_attribute_name">Address:</td>
+            <td id="iw-address"></td>
+          </tr>
+          <tr id="iw-phone-row" class="iw_table_row">
+            <td class="iw_attribute_name">Telephone:</td>
+            <td id="iw-phone"></td>
+          </tr>
+          <tr id="iw-rating-row" class="iw_table_row">
+            <td class="iw_attribute_name">Rating:</td>
+            <td id="iw-rating"></td>
+          </tr>
+          <tr id="iw-website-row" class="iw_table_row">
+            <td class="iw_attribute_name">Website:</td>
+            <td id="iw-website"></td>
+          </tr>   
+        </table>
+      </div>
+    </div>
+    
+      
+     <div id="directions"> 
+    <!-- 
+<p>
+    <b>Waypoints:</b><i>(Ctrl-Click for multiple selection)</i> 
+	<br>
+	<select multiple id="waypoints">
+      <option value="Toronto, On">Toronto, ONT</option>
+      <option value="Mississauga, On">Mississauga, ONT</option>
+      <option value="Burlington, On">Burlington, ONT</option>
+    </select>
+ -->
+    
+ 
+    </div>
+    <div id="directions-panel"></div>
+    </div>
+    
+    </div>
+    
+
+    
+    <script>
+ 	
+ 	var map, places, infoWindow;
+      var markers = [];
+      var autocomplete;
+      var countryRestrict = {'country': 'ca'};
+      var MARKER_PATH = 'http://phoenix.sheridanc.on.ca/~ixd2578/project02/markers/';
+      var hostnameRegexp = new RegExp('^https?://.+?/');
+ 	
+      function initMap() {
+        var directionsService = new google.maps.DirectionsService;
+        var directionsDisplay = new google.maps.DirectionsRenderer;
+        var map = new google.maps.Map(document.getElementById('map'), {
+          zoom: 4,
+          center: {lat: 59.7843128, lng: -96.9552344}
+        });
+         
+        directionsDisplay.setMap(map);
+        
+   document.getElementById('submit').addEventListener('click', function() {
+          calculateAndDisplayRoute(directionsService, directionsDisplay);
+        });
+        
+        infoWindow = new google.maps.InfoWindow({
+          content: document.getElementById('info-content')
+        });
+ 
+        // Create the autocomplete object and associate it with the UI input control.
+        // Restrict the search to the default country, and to place type "cities".
+        autocomplete = new google.maps.places.Autocomplete(
+            /** @type {!HTMLInputElement} */ (
+                document.getElementById('autocomplete')), {
+              types: ['(cities)'],
+              componentRestrictions: countryRestrict
+            });
+            
+        places = new google.maps.places.PlacesService(map);
+      
+      autocomplete.addListener('place_changed', onPlaceChanged);
+
+        // Add a DOM event listener to react when the user selects a country.
+        document.getElementById('country').addEventListener(
+            'change', setAutocompleteCountry);
+    
+      // When the user selects a city, get the place details for the city and
+      // zoom the map in on the city.
+      function onPlaceChanged() {
+        var place = autocomplete.getPlace();
+        if (place.geometry) {
+          map.panTo(place.geometry.location);
+          map.setZoom(15);
+          search();
+        } else {
+          document.getElementById('autocomplete').placeholder = 'Enter a city';
+        }
+      }
+
+      // Search for hotels in the selected city, within the viewport of the map.
+      function search() {
+        var search = {
+          bounds: map.getBounds(),
+          types: ['bar']
+        };
+
+        places.nearbySearch(search, function(results, status) {
+          if (status === google.maps.places.PlacesServiceStatus.OK) {
+            clearResults();
+            clearMarkers();
+            // Create a marker for each hotel found, and
+            // assign a letter of the alphabetic to each marker icon.
+            for (var i = 0; i < results.length; i++) {
+              var markerLetter = String.fromCharCode('A'.charCodeAt(0) + i);
+              var markerIcon = MARKER_PATH + markerLetter + '.svg';
+              // Use marker animation to drop the icons incrementally on the map.
+              markers[i] = new google.maps.Marker({
+                position: results[i].geometry.location,
+                animation: google.maps.Animation.DROP,
+                icon: markerIcon
+              });
+              // If the user clicks a hotel marker, show the details of that hotel
+              // in an info window.
+              markers[i].placeResult = results[i];
+              google.maps.event.addListener(markers[i], 'click', showInfoWindow);
+              setTimeout(dropMarker(i), i * 100);
+              addResult(results[i], i);
+            }
+          }
+        });
+      }
+
+      function clearMarkers() {
+        for (var i = 0; i < markers.length; i++) {
+          if (markers[i]) {
+            markers[i].setMap(null);
+          }
+        }
+        markers = [];
+      }
+
+      // Set the country restriction based on user input.
+      // Also center and zoom the map on the given country.
+      function setAutocompleteCountry() {
+        var country = document.getElementById('country').value;
+        if (country == 'all') {
+          autocomplete.setComponentRestrictions([]);
+          map.setCenter({lat: 15, lng: 0});
+          map.setZoom(5);
+        } else {
+          autocomplete.setComponentRestrictions({'country': country});
+          map.setCenter(countries[country].center);
+          map.setZoom(countries[country].zoom);
+        }
+        clearResults();
+        clearMarkers();
+      }
+
+      function dropMarker(i) {
+        return function() {
+          markers[i].setMap(map);
+        };
+      }
+
+      function addResult(result, i) {
+        var results = document.getElementById('resultsTable');
+			var name = document.createElement('option');
+			var text = document.createTextNode(result.name);
+			name.appendChild(text);
+			results.appendChild(name);
+      }
+    
+
+      function clearResults() {
+        var results = document.getElementById('resultsTable');
+        while (results.childNodes[0]) {
+          results.removeChild(results.childNodes[0]);
+        }
+      }
+
+      // Get the place details for a hotel. Show the information in an info window,
+      // anchored on the marker for the hotel that the user selected.
+      function showInfoWindow() {
+        var marker = this;
+        places.getDetails({placeId: marker.placeResult.place_id},
+            function(place, status) {
+              if (status !== google.maps.places.PlacesServiceStatus.OK) {
+                return;
+              }
+              infoWindow.open(map, marker);
+              buildIWContent(place);
+            });
+      }
+
+      // Load the place information into the HTML elements used by the info window.
+      function buildIWContent(place) {
+
+        document.getElementById('iw-icon').innerHTML = '<img class="hotelIcon" ' +
+            'src="' + place.icon + '"/>';
+        document.getElementById('iw-url').innerHTML = '<b><a href="' + place.url +
+            '">' + place.name + '</a></b>';
+        document.getElementById('iw-address').textContent = place.vicinity;
+
+        if (place.formatted_phone_number) {
+          document.getElementById('iw-phone-row').style.display = '';
+          document.getElementById('iw-phone').textContent =
+              place.formatted_phone_number;
+        } else {
+          document.getElementById('iw-phone-row').style.display = 'none';
+        }
+
+        // Assign a five-star rating to the hotel, using a black star ('&#10029;')
+        // to indicate the rating the hotel has earned, and a white star ('&#10025;')
+        // for the rating points not achieved.
+        if (place.rating) {
+          var ratingHtml = '';
+          for (var i = 0; i < 5; i++) {
+            if (place.rating < (i + 0.5)) {
+              ratingHtml += '&#10025;';
+            } else {
+              ratingHtml += '&#10029;';
+            }
+          document.getElementById('iw-rating-row').style.display = '';
+          document.getElementById('iw-rating').innerHTML = ratingHtml;
+          }
+        } else {
+          document.getElementById('iw-rating-row').style.display = 'none';
+        }
+
+        // The regexp isolates the first part of the URL (domain plus subdomain)
+        // to give a short URL for displaying in the info window.
+        if (place.website) {
+          var fullUrl = place.website;
+          var website = hostnameRegexp.exec(place.website);
+          if (website === null) {
+            website = 'http://' + place.website + '/';
+            fullUrl = website;
+          }
+          document.getElementById('iw-website-row').style.display = '';
+          document.getElementById('iw-website').textContent = website;
+        } else {
+          document.getElementById('iw-website-row').style.display = 'none';
+        }
+      };
+ 
+      
+      function calculateAndDisplayRoute(directionsService, directionsDisplay) {
+        var waypts = [];
+        var checkboxArray = document.getElementById('waypoints');
+        for (var i = 0; i < checkboxArray.length; i++) {
+          if (checkboxArray.options[i].selected) {
+            waypts.push({
+              location: checkboxArray[i].value,
+              stopover: true
+            });
+          }
+        }
+
+        directionsService.route({
+          origin: document.getElementById('start').value,
+          destination: document.getElementById('end').value,
+          waypoints: waypts,
+          optimizeWaypoints: true,
+          travelMode: google.maps.TravelMode.DRIVING
+        }, function(response, status) {
+          if (status === google.maps.DirectionsStatus.OK) {
+            directionsDisplay.setDirections(response);
+            var route = response.routes[0];
+            var summaryPanel = document.getElementById('directions-panel');
+            summaryPanel.innerHTML = '';
+            // For each route, display summary information.
+            for (var i = 0; i < route.legs.length; i++) {
+              var routeSegment = i + 1;
+              summaryPanel.innerHTML += '<b>Route Segment: ' + routeSegment +
+                  '</b><br>';
+              summaryPanel.innerHTML += route.legs[i].start_address + ' to ';
+              summaryPanel.innerHTML += route.legs[i].end_address + '<br>';
+              summaryPanel.innerHTML += route.legs[i].distance.text + '<br><br>';
+            }
+          } else {
+            window.alert('Directions request failed due to ' + status);
+          }
+        });
+      };
+    };
+      
+
+    </script>
+    <script>
+	$("#resultsTable").mousedown(function(e){
+		e.preventDefault();
+	
+		var select = this;
+		var scroll = select.scrollTop;
+	
+		e.target.selected = !e.target.selected;
+	
+		setTimeout(function(){select.scrollTop = scroll;}, 0);
+	
+		$(select).focus();
+	}).mousemove(function(e){e.preventDefault()
+});
+
+
+document.getElementById('selected').addEventListener("click", function(){
+	var selected1 = $('#resultsTable').find(":selected").clone();
+	var selected2 = $('#resultsTable').find(":selected").clone();
+	
+	var startTable = $('#startTable');
+	var endTable = $('#endTable');
+	
+	startTable.append(selected1);
+	endTable.append(selected2);
+});	
+	
+</script>
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD5o6g6sZ_10SaqsvWHRYWybP8e3CfCSlI&libraries=places&callback=initMap">
+     
+    </script>
+  </body>
+</html>
